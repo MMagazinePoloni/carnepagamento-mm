@@ -46,6 +46,7 @@ export async function GET(
     const contract = {
       id: String(pvenum),
       token: String(pvenum),
+      customer_id: Number(first.CLICOD),
       customer_name: `Cliente #${first.CLICOD}`,
       contract_number: String(pvenum),
       total_amount: total
@@ -85,8 +86,8 @@ export async function GET(
         status: pago
           ? "pago"
           : new Date(due).getTime() < Date.now()
-          ? "atrasado"
-          : "pendente",
+            ? "atrasado"
+            : "pendente",
         pix_charge_id: null,
         pcrnot: Number(v.PVENUM)
       }

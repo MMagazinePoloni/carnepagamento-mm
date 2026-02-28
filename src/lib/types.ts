@@ -3,6 +3,7 @@ export type InstallmentStatus = "pendente" | "pago" | "atrasado"
 export interface Contract {
   id: string
   token: string
+  customer_id?: number
   customer_name: string
   contract_number: string
   total_amount: number

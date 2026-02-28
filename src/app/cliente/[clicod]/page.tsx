@@ -1,10 +1,11 @@
 "use client"
 import { useEffect, useMemo, useState } from "react"
-import { useParams } from "next/navigation"
+import { useParams, useSearchParams } from "next/navigation"
 import { supabase } from "../../../lib/supabaseClient"
 import type { Installment, InstallmentStatus } from "../../../lib/types"
 import InstallmentCard from "../../../components/InstallmentCard"
 import PaymentModal from "../../../components/PaymentModal"
+import { decodeClientId } from "../../../lib/obfuscate"
 
 type ContractWithInstallments = {
   pvenum: number
@@ -16,13 +17,18 @@ type ContractWithInstallments = {
 
 export default function ClienteContratosPage() {
   const params = useParams()
-  const clicod = useMemo(() => Number(params?.clicod as string), [params])
+  const searchParams = useSearchParams()
+  const rawToken = params?.clicod as string
+  const clicod = useMemo(() => Number(decodeClientId(rawToken)), [rawToken])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [contracts, setContracts] = useState<ContractWithInstallments[]>([])
   const [customerName, setCustomerName] = useState<string | null>(null)
   const [expandedContract, setExpandedContract] = useState<number | null>(null)
-  const [activeTab, setActiveTab] = useState<'inicio' | 'extrato' | 'carnes' | 'perfil'>('inicio')
+
+  const initialTab = (searchParams?.get("tab") as 'inicio' | 'suporte' | 'carnes' | 'perfil') || 'inicio'
+  const [activeTab, setActiveTab] = useState<'inicio' | 'suporte' | 'carnes' | 'perfil'>(initialTab)
+  const [installmentFilter, setInstallmentFilter] = useState<'tudo' | 'aberto' | 'atrasado'>('tudo')
   const [paying, setPaying] = useState<{ open: boolean; installment?: Installment }>({
     open: false
   })
@@ -30,7 +36,7 @@ export default function ClienteContratosPage() {
   useEffect(() => {
     let mounted = true
     async function load() {
-      if (!clicod || isNaN(clicod)) {
+      if (!rawToken || !clicod || isNaN(clicod)) {
         setError("Cliente inválido")
         setLoading(false)
         return
@@ -38,96 +44,25 @@ export default function ClienteContratosPage() {
       setLoading(true)
       setError(null)
 
-      // Fetch customer name
-      const { data: customerData } = await supabase
-        .from("CLIENTE")
-        .select("CLINOM")
-        .eq("CLICOD", clicod)
-        .maybeSingle()
-      
-      if (mounted && customerData) {
-        setCustomerName((customerData as any).CLINOM)
-      }
+      try {
+        const res = await fetch(`/api/cliente/${rawToken}`)
+        const json = await res.json()
 
-      const { data, error } = await supabase
-        .from("NVENDA")
-        .select("PVENUM, PVEDAT, NPESEQ, PVETPA, PAGCOD, PAGDES, CLICOD")
-        .eq("CLICOD", clicod)
-        .order("PVENUM", { ascending: false })
-        .order("NPESEQ", { ascending: true })
-
-      if (!mounted) return
-      if (error) {
-        setError(`Erro ao buscar contratos: ${error.message}`)
-        setLoading(false)
-        return
-      }
-      if (!data || data.length === 0) {
-        setContracts([])
-        setLoading(false)
-        return
-      }
-
-      function addDays(base: string, days: number) {
-        const d = new Date(base)
-        d.setDate(d.getDate() + days)
-        const y = d.getFullYear()
-        const m = String(d.getMonth() + 1).padStart(2, "0")
-        const dd = String(d.getDate()).padStart(2, "0")
-        return `${y}-${m}-${dd}`
-      }
-
-      const map = new Map<number, ContractWithInstallments>()
-      for (const row of data as any[]) {
-        const num = Number(row.PVENUM)
-        if (!map.has(num)) {
-          map.set(num, {
-            pvenum: num,
-            total: 0,
-            count: 0,
-            firstDate: row.PVEDAT,
-            installments: []
-          })
-        }
-        
-        const item = map.get(num)!
-        item.total += Number(row.PVETPA || 0)
-        item.count = Math.max(item.count, Number(row.NPESEQ))
-        if (new Date(row.PVEDAT) < new Date(item.firstDate)) {
-          item.firstDate = row.PVEDAT
+        if (!mounted) return
+        if (!res.ok) {
+          setError(json.error || "Erro ao buscar dados do cliente")
+          setLoading(false)
+          return
         }
 
-        const pago = Number(row.PAGCOD) === 7
-        const idx = Number(row.NPESEQ)
-        const firstIsBoleto = String(row.PAGDES || "").toUpperCase() === "BOLETO" || Number(row.PAGCOD) === 5
-        const due = firstIsBoleto
-          ? addDays(item.firstDate, 30 * idx)
-          : addDays(item.firstDate, 30 * (idx - 1))
-
-        item.installments.push({
-          id: `${row.PVENUM}-${row.NPESEQ}`,
-          contract_id: String(row.PVENUM),
-          index: idx,
-          count: 0, // Will be updated later
-          amount: Number(row.PVETPA || 0),
-          due_date: due,
-          status: pago
-            ? "pago"
-            : new Date(due).getTime() < Date.now()
-            ? "atrasado"
-            : "pendente",
-          pix_charge_id: null,
-          pcrnot: Number(row.PVENUM)
-        })
+        setCustomerName(json.customerName)
+        setContracts(json.contracts || [])
+      } catch (err: any) {
+        if (!mounted) return
+        setError(err.message || "Erro de rede")
+      } finally {
+        if (mounted) setLoading(false)
       }
-
-      const result = Array.from(map.values()).map(c => ({
-        ...c,
-        installments: c.installments.map(i => ({ ...i, count: c.count }))
-      })).sort((a, b) => b.pvenum - a.pvenum)
-
-      setContracts(result)
-      setLoading(false)
     }
     load()
     return () => { mounted = false }
@@ -186,25 +121,25 @@ export default function ClienteContratosPage() {
                 {/* Quick Actions */}
                 <div className="quick-actions">
                   <div className="action-item cursor-pointer" onClick={() => setActiveTab('carnes')}>
-                    <div className="action-icon-box text-danger">
-                      <i className="bi bi-qr-code"></i>
+                    <div className="action-icon-box" style={{ background: '#FFF0F0', color: 'var(--primary-red)' }}>
+                      <i className="bi bi-qr-code-scan"></i>
                     </div>
                     <div className="action-label">PIX</div>
                   </div>
                   <div className="action-item">
-                    <div className="action-icon-box text-primary">
+                    <div className="action-icon-box" style={{ background: '#E6F0FE', color: 'var(--mm-card-blue)' }}>
                       <i className="bi bi-upc-scan"></i>
                     </div>
                     <div className="action-label">BOLETO</div>
                   </div>
-                  <div className="action-item cursor-pointer" onClick={() => setActiveTab('extrato')}>
-                    <div className="action-icon-box text-secondary">
-                      <i className="bi bi-clock-history"></i>
+                  <div className="action-item cursor-pointer" onClick={() => setActiveTab('suporte')}>
+                    <div className="action-icon-box" style={{ background: '#F8F9FA', color: '#6C757D' }}>
+                      <i className="bi bi-headset"></i>
                     </div>
-                    <div className="action-label">HISTÓRICO</div>
+                    <div className="action-label">SUPORTE</div>
                   </div>
                   <div className="action-item">
-                    <div className="action-icon-box text-dark">
+                    <div className="action-icon-box" style={{ background: '#F8F9FA', color: '#6C757D' }}>
                       <i className="bi bi-shop"></i>
                     </div>
                     <div className="action-label">LOJAS</div>
@@ -233,8 +168,8 @@ export default function ClienteContratosPage() {
                 {/* Status Cards */}
                 <div className="stats-row">
                   <div className="stat-card">
-                    <div className="stat-icon bg-light text-primary">
-                      <i className="bi bi-wallet"></i>
+                    <div className="stat-icon" style={{ background: '#E6F0FE', color: 'var(--mm-card-blue)' }}>
+                      <i className="bi bi-wallet2"></i>
                     </div>
                     <div className="stat-label">Saldo Total</div>
                     <div className="stat-value">
@@ -242,8 +177,8 @@ export default function ClienteContratosPage() {
                     </div>
                   </div>
                   <div className="stat-card">
-                    <div className="stat-icon bg-light text-danger">
-                      <i className="bi bi-calendar-check"></i>
+                    <div className="stat-icon" style={{ background: '#FFF0F0', color: 'var(--primary-red)' }}>
+                      <i className="bi bi-calendar-event"></i>
                     </div>
                     <div className="stat-label">Parcelas</div>
                     <div className="stat-value">
@@ -252,9 +187,9 @@ export default function ClienteContratosPage() {
                   </div>
                 </div>
 
-                {/* Próximo Vencimento */}
+                {/* Próximo Vencimento restored as per request */}
                 {nextInstallment && (
-                  <div className="main-payment-card">
+                  <div className="main-payment-card mt-2">
                     <div className="payment-label">Próximo Vencimento</div>
                     <div className="payment-value">
                       {Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(nextInstallment.amount)}
@@ -273,10 +208,10 @@ export default function ClienteContratosPage() {
                         />
                         <path
                           className="stroke-red"
-                          style={{ 
-                            stroke: 'var(--primary-red)', 
-                            strokeWidth: 3, 
-                            strokeLinecap: 'round', 
+                          style={{
+                            stroke: 'var(--primary-red)',
+                            strokeWidth: 3,
+                            strokeLinecap: 'round',
                             fill: 'none',
                             strokeDasharray: `${(stats.paid / (stats.total || 1)) * 100}, 100`
                           }}
@@ -290,7 +225,7 @@ export default function ClienteContratosPage() {
 
                     <div className="payment-actions">
                       <button className="btn-pay shadow-sm" onClick={() => openPayment(nextInstallment)}>
-                        <i className="bi bi-qr-code"></i>
+                        <i className="bi bi-cash-coin"></i>
                         Pagar Agora
                       </button>
                       <button className="btn-view" onClick={() => {
@@ -305,8 +240,8 @@ export default function ClienteContratosPage() {
                 )}
 
                 {/* Info Alert */}
-                <div className="info-alert mt-4 shadow-sm">
-                  <div className="info-icon">
+                <div className="info-alert mt-4 shadow-sm" style={{ background: '#F1F5F9', border: '1px solid #E2E8F0' }}>
+                  <div className="info-icon" style={{ background: 'var(--mm-card-blue)' }}>
                     <i className="bi bi-info-lg"></i>
                   </div>
                   <div className="info-text">
@@ -316,109 +251,298 @@ export default function ClienteContratosPage() {
               </>
             )}
 
-            {activeTab === 'extrato' && (
-              <div className="p-2">
-                <h5 className="fw-bold mb-4 ls-1 text-uppercase small text-muted">Histórico de Atividades</h5>
-                <div className="stat-card p-4 text-center">
-                  <i className="bi bi-clock-history fs-1 text-muted mb-3 d-block"></i>
-                  <p className="text-muted mb-0">Nenhuma atividade recente registrada no momento.</p>
+            {activeTab === 'suporte' && (
+              <div className="p-3 bg-app pb-5">
+                <div className="d-flex align-items-center mb-4">
+                  <button className="back-btn shadow-sm" onClick={() => setActiveTab('inicio')}>
+                    <i className="bi bi-chevron-left"></i>
+                  </button>
+                  <h5 className="fw-bold m-0 flex-grow-1 text-center" style={{ marginRight: '40px' }}>Suporte e Ajuda</h5>
+                </div>
+
+                <div className="mb-4">
+                  <h3 className="fw-bold text-dark lh-sm m-0">Como podemos te</h3>
+                  <h3 className="fw-bold text-danger lh-sm m-0 mb-2">ajudar hoje?</h3>
+                  <p className="text-muted small">Gerencie seus carnês da MM Magazine rapidamente.</p>
+                </div>
+
+                <div className="suporte-card shadow-sm mb-4 position-relative overflow-hidden bg-white"
+                  style={{ borderRadius: '16px', padding: '1.5rem', border: '1px solid #f0f0f0' }}>
+                  <div className="d-flex align-items-center gap-3 mb-2">
+                    <div className="bg-success bg-opacity-10 text-success rounded p-3 d-flex align-items-center justify-content-center"
+                      style={{ width: '48px', height: '48px' }}>
+                    </div>
+                    <div>
+                      <h6 className="fw-bold m-0 fs-5 text-dark">WhatsApp</h6>
+                    </div>
+                  </div>
+                  <p className="text-muted small m-0 pe-5">
+                    Fale agora com um consultor via contato direto.
+                  </p>
+                  <div className="position-absolute" style={{ top: '1.5rem', right: '1.5rem' }}>
+                    <div className="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 rounded-pill px-2 py-1" style={{ fontSize: '0.6rem', fontWeight: 700 }}>
+                      <i className="bi bi-circle-fill me-1" style={{ fontSize: '0.4rem' }}></i> ONLINE AGORA
+                    </div>
+                  </div>
+                  <div className="whatsapp-bg-icon position-absolute opacity-10" style={{ right: '-10px', bottom: '-20px', fontSize: '100px', color: '#25D366' }}>
+                    <i className="bi bi-whatsapp"></i>
+                  </div>
+                </div>
+
+                <div className="search-bar position-relative mb-4">
+                  <i className="bi bi-search position-absolute text-muted" style={{ left: '1rem', top: '50%', transform: 'translateY(-50%)' }}></i>
+                  <input type="text" className="form-control bg-white shadow-sm border-0"
+                    placeholder="Pesquise por dúvidas, parcelas..."
+                    style={{ paddingLeft: '2.5rem', height: '50px', borderRadius: '12px' }} />
+                </div>
+
+                <div className="d-flex justify-content-between align-items-center mb-3 mt-4">
+                  <h6 className="fw-bold m-0 text-dark fs-5">Perguntas Frequentes</h6>
+                  <span className="text-danger small fw-bold" style={{ fontSize: '0.7rem' }}>VER TUDO</span>
+                </div>
+
+                <div className="d-flex flex-column gap-2 mb-4">
+                  <div className="bg-white rounded-4 px-3 py-3 d-flex align-items-center justify-content-between shadow-sm">
+                    <div className="d-flex align-items-center gap-3">
+                      <div className="bg-danger bg-opacity-10 text-danger rounded p-2 d-flex align-items-center justify-content-center">
+                        <i className="bi bi-receipt"></i>
+                      </div>
+                      <span className="fw-bold text-dark fs-6">Como pago meu carnê?</span>
+                    </div>
+                    <i className="bi bi-chevron-down text-muted"></i>
+                  </div>
+                  <div className="bg-white rounded-4 px-3 py-3 d-flex align-items-center justify-content-between shadow-sm">
+                    <div className="d-flex align-items-center gap-3">
+                      <div className="bg-danger bg-opacity-10 text-danger rounded p-2 d-flex align-items-center justify-content-center">
+                        <i className="bi bi-clock"></i>
+                      </div>
+                      <span className="fw-bold text-dark fs-6">Taxas e juros por atraso</span>
+                    </div>
+                    <i className="bi bi-chevron-down text-muted"></i>
+                  </div>
+                  <div className="bg-white rounded-4 px-3 py-3 d-flex align-items-center justify-content-between shadow-sm">
+                    <div className="d-flex align-items-center gap-3">
+                      <div className="bg-danger bg-opacity-10 text-danger rounded p-2 d-flex align-items-center justify-content-center">
+                        <i className="bi bi-shield-check"></i>
+                      </div>
+                      <span className="fw-bold text-dark fs-6">Configurações de segurança</span>
+                    </div>
+                    <i className="bi bi-chevron-down text-muted"></i>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-4 px-3 py-3 d-flex align-items-center justify-content-between shadow-sm mt-4">
+                  <div className="d-flex align-items-center gap-3">
+                    <div className="bg-light text-secondary rounded p-2 d-flex align-items-center justify-content-center">
+                      <i className="bi bi-shop"></i>
+                    </div>
+                    <div>
+                      <div className="fw-bold text-dark" style={{ fontSize: '0.8rem' }}>ENCONTRAR UMA LOJA FÍSICA</div>
+                      <div className="text-muted" style={{ fontSize: '0.7rem' }}>Localize a MM Magazine mais próxima</div>
+                    </div>
+                  </div>
+                  <i className="bi bi-chevron-right text-muted small"></i>
                 </div>
               </div>
             )}
 
             {activeTab === 'carnes' && (
-              <div className="p-2">
-                <h5 className="fw-bold mb-4 ls-1 text-uppercase small text-muted">Meus Carnês Digitais</h5>
-                {contracts.length === 0 ? (
-                  <div className="stat-card p-5 text-center shadow-sm">
-                    <i className="bi bi-folder-x fs-1 text-muted mb-3 d-block"></i>
-                    <p className="text-muted mb-0">Nenhum contrato ativo encontrado no momento.</p>
-                  </div>
-                ) : (
-                  contracts.map((c) => (
-                    <div key={c.pvenum} className="stat-card mb-3 p-0 overflow-hidden">
-                      <div 
-                        className="p-3 d-flex justify-content-between align-items-center cursor-pointer"
-                        onClick={() => setExpandedContract(expandedContract === c.pvenum ? null : c.pvenum)}
-                      >
-                        <div className="d-flex align-items-center gap-3">
-                          <div className="bg-light p-2 rounded-3 text-primary">
-                            <i className="bi bi-file-text fs-5"></i>
-                          </div>
-                          <div>
-                            <div className="fw-bold">Contrato #{c.pvenum}</div>
-                            <div className="text-muted small">Início: {new Date(c.firstDate).toLocaleDateString("pt-BR")}</div>
-                          </div>
-                        </div>
-                        <div className="d-flex align-items-center gap-2">
-                          <span className="badge-custom badge-pendente d-none d-sm-inline-block">
-                            {c.count} parcelas
-                          </span>
-                          <i className={`bi bi-chevron-${expandedContract === c.pvenum ? 'up' : 'down'} text-muted`}></i>
-                        </div>
-                      </div>
-                      
-                      {expandedContract === c.pvenum && (
-                        <div className="p-3 bg-light border-top animate__animated animate__fadeIn">
-                          <div className="installments-grid-desktop">
-                            {c.installments.map((inst) => (
-                              <InstallmentCard
-                                key={inst.id}
-                                installment={inst}
-                                onPay={() => openPayment(inst)}
-                              />
-                            ))}
-                          </div>
-                        </div>
-                      )}
+              <div className="carnes-tab-container pb-5">
+                <div className="carnes-header mt-3">
+                  <button className="back-btn shadow-sm" onClick={() => setActiveTab('inicio')}>
+                    <i className="bi bi-chevron-left"></i>
+                  </button>
+                  <h4 className="fw-bold m-0 text-dark">Meus Carnês</h4>
+                  <button className="help-btn shadow-sm" onClick={() => setActiveTab('suporte')}>
+                    <i className="bi bi-question-circle"></i>
+                  </button>
+                </div>
+
+                <div className="total-restante-card shadow">
+                  <div className="total-restante-content">
+                    <div className="total-restante-label">TOTAL RESTANTE</div>
+                    <div className="total-restante-value">
+                      {Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(stats.totalAmount)}
                     </div>
-                  ))
-                )}
+                    {nextInstallment && (
+                      <div className="total-restante-next-due">
+                        Próximo vencimento: {new Date(nextInstallment.due_date).toLocaleDateString("pt-BR", { day: 'numeric', month: 'short' })}
+                      </div>
+                    )}
+                  </div>
+                  <div className="total-restante-bg-shapes">
+                    <div className="shape shape-1"></div>
+                    <div className="shape shape-2"></div>
+                    <div className="shape shape-3"></div>
+                  </div>
+                </div>
+
+                <div className="filter-pills-container scroll-x pb-3 mb-2 mt-4">
+                  <button
+                    className={`filter-pill ${installmentFilter === 'tudo' ? 'active' : ''}`}
+                    onClick={() => setInstallmentFilter('tudo')}
+                  >
+                    Tudo
+                  </button>
+                  <button
+                    className={`filter-pill ${installmentFilter === 'aberto' ? 'active' : ''}`}
+                    onClick={() => setInstallmentFilter('aberto')}
+                  >
+                    Em Aberto
+                  </button>
+                  <button
+                    className={`filter-pill ${installmentFilter === 'atrasado' ? 'active' : ''}`}
+                    onClick={() => setInstallmentFilter('atrasado')}
+                  >
+                    Atrasados
+                  </button>
+                </div>
+
+                <div className="installments-list">
+                  {contracts.length === 0 ? (
+                    <div className="stat-card p-5 text-center shadow-sm">
+                      <i className="bi bi-folder-x fs-1 text-muted mb-3 d-block"></i>
+                      <p className="text-muted mb-0">Nenhum contrato ativo encontrado no momento.</p>
+                    </div>
+                  ) : (
+                    contracts.map((c) => {
+                      const filteredInstallments = c.installments
+                        .filter(i => {
+                          if (installmentFilter === 'tudo') return true;
+                          if (installmentFilter === 'aberto') return i.status === 'pendente';
+                          if (installmentFilter === 'atrasado') return i.status === 'atrasado';
+                          return true;
+                        })
+                        .sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime());
+
+                      if (filteredInstallments.length === 0) return null;
+
+                      // Use a derived "token" or masked Contract ID to maintain privacy
+                      const privacyToken = String(c.pvenum).slice(-4).padStart(7, 'A0X');
+
+                      return (
+                        <div key={c.pvenum} className="stat-card mb-4 p-0 overflow-hidden shadow-sm">
+                          <div
+                            className="p-3 d-flex justify-content-between align-items-center cursor-pointer bg-light border-bottom"
+                            onClick={() => setExpandedContract(expandedContract === c.pvenum ? null : c.pvenum)}
+                          >
+                            <div className="d-flex align-items-center gap-3">
+                              <div className="bg-white p-2 text-primary shadow-sm" style={{ borderRadius: '12px' }}>
+                                <i className="bi bi-file-earmark-text fs-5"></i>
+                              </div>
+                              <div>
+                                <div className="text-muted small fw-bold text-uppercase ls-1" style={{ fontSize: '0.65rem' }}>CONTRATO</div>
+                                <div className="fw-bold fs-6 text-dark">#{privacyToken}</div>
+                              </div>
+                            </div>
+                            <div className="d-flex align-items-center gap-2">
+                              {expandedContract !== c.pvenum && (
+                                <span className="badge-custom badge-pendente d-none d-sm-inline-block">
+                                  {filteredInstallments.length} {filteredInstallments.length === 1 ? 'parcela' : 'parcelas'}
+                                </span>
+                              )}
+                              <i className={`bi bi-chevron-${expandedContract === c.pvenum ? 'up' : 'down'} text-muted`}></i>
+                            </div>
+                          </div>
+
+                          {expandedContract === c.pvenum && (
+                            <div className="p-3 animate__animated animate__fadeIn">
+                              <div className="installments-grid-desktop">
+                                {filteredInstallments.map((inst) => (
+                                  <InstallmentCard
+                                    key={inst.id}
+                                    installment={inst}
+                                    onPay={() => openPayment(inst)}
+                                  />
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
               </div>
             )}
 
             {activeTab === 'perfil' && (
-              <div className="p-2">
-                <h5 className="fw-bold mb-4 ls-1 text-uppercase small text-muted">Seu Perfil</h5>
-                <div className="stat-card p-4">
-                  <div className="d-flex align-items-center gap-3 mb-4">
-                    <div className="bg-primary-red text-white rounded-circle p-3 d-flex align-items-center justify-content-center" style={{ width: 64, height: 64 }}>
-                      <i className="bi bi-person fs-2"></i>
+              <div className="p-3 bg-app pb-5">
+                <div className="d-flex align-items-center mb-4">
+                  <button className="back-btn shadow-sm" onClick={() => setActiveTab('inicio')}>
+                    <i className="bi bi-chevron-left"></i>
+                  </button>
+                  <h5 className="fw-bold m-0 flex-grow-1 text-center" style={{ marginRight: '40px' }}>Perfil</h5>
+                </div>
+
+                <div className="bg-white rounded-4 p-4 shadow-sm text-center mb-4 position-relative overflow-hidden d-flex flex-column align-items-center">
+                  <div className="mb-3 d-flex justify-content-center position-relative perfil-avatar-wrapper">
+                    <div className="rounded-4 bg-danger text-white d-flex align-items-center justify-content-center shadow"
+                      style={{ width: '80px', height: '80px', position: 'relative', zIndex: 2 }}>
+                      <i className="bi bi-person-fill fs-1"></i>
                     </div>
-                    <div>
-                      <h5 className="fw-bold mb-1">{customerName || 'Cliente MM'}</h5>
-                      <span className="text-muted small">ID: #{clicod}</span>
+                    <div className="position-absolute text-muted opacity-10 fw-bold fst-italic"
+                      style={{ fontSize: '120px', top: -40, right: -20, zIndex: 1, letterSpacing: '-5px' }}>
+                      M
                     </div>
                   </div>
-                  <div className="list-group list-group-flush">
-                    <div className="list-group-item d-flex justify-content-between align-items-center px-0 py-3">
-                      <div className="d-flex align-items-center gap-2">
-                        <i className="bi bi-person-gear text-muted"></i>
-                        <span>Dados Pessoais</span>
-                      </div>
-                      <i className="bi bi-chevron-right text-muted small"></i>
-                    </div>
-                    <div className="list-group-item d-flex justify-content-between align-items-center px-0 py-3">
-                      <div className="d-flex align-items-center gap-2">
-                        <i className="bi bi-shield-lock text-muted"></i>
-                        <span>Segurança</span>
-                      </div>
-                      <i className="bi bi-chevron-right text-muted small"></i>
-                    </div>
-                    <div className="list-group-item d-flex justify-content-between align-items-center px-0 py-3">
-                      <div className="d-flex align-items-center gap-2">
-                        <i className="bi bi-question-circle text-muted"></i>
-                        <span>Ajuda & Suporte</span>
-                      </div>
-                      <i className="bi bi-chevron-right text-muted small"></i>
-                    </div>
-                    <button className="list-group-item d-flex justify-content-between align-items-center px-0 py-3 border-0 bg-transparent text-danger w-100">
-                      <div className="d-flex align-items-center gap-2">
-                        <i className="bi bi-box-arrow-right"></i>
-                        <span className="fw-bold">Sair da Conta</span>
-                      </div>
-                    </button>
+                  <h4 className="fw-bold text-dark m-0 mb-1">{customerName || 'Cliente MM'}</h4>
+                  <p className="text-muted small mb-3">CPF: 000.***.***-00</p>
+                  <div className="d-inline-flex bg-danger bg-opacity-10 text-danger rounded-pill px-3 py-1 align-items-center gap-1" style={{ fontSize: '0.65rem', fontWeight: 800, letterSpacing: '0.05em' }}>
+                    <i className="bi bi-patch-check-fill"></i> CLIENTE OURO
                   </div>
+                </div>
+
+                <div className="mb-4">
+                  <div className="text-muted fw-bold mb-2 ms-1" style={{ fontSize: '0.65rem', letterSpacing: '1px', textTransform: 'uppercase' }}>Preferências</div>
+                  <div className="bg-white rounded-4 shadow-sm overflow-hidden">
+                    <div className="d-flex align-items-center justify-content-between p-3 border-bottom" onClick={() => setActiveTab('suporte')} style={{ cursor: 'pointer' }}>
+                      <div className="d-flex align-items-center gap-3">
+                        <div className="bg-primary bg-opacity-10 text-primary rounded-3 p-2 d-flex align-items-center justify-content-center">
+                          <i className="bi bi-headset fs-5"></i>
+                        </div>
+                        <span className="fw-bold text-dark">Suporte e Ajuda</span>
+                      </div>
+                      <i className="bi bi-chevron-right text-muted small"></i>
+                    </div>
+                    <div className="d-flex align-items-center justify-content-between p-3" style={{ cursor: 'pointer' }}>
+                      <div className="d-flex align-items-center gap-3">
+                        <div className="bg-secondary bg-opacity-10 text-secondary rounded-3 p-2 d-flex align-items-center justify-content-center">
+                          <i className="bi bi-moon-fill fs-5"></i>
+                        </div>
+                        <span className="fw-bold text-dark">Tema do Aplicativo</span>
+                      </div>
+                      <div className="d-flex align-items-center gap-2">
+                        <span className="text-muted small fw-600">Sistema</span>
+                        <i className="bi bi-chevron-right text-muted small"></i>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mb-4">
+                  <div className="text-muted fw-bold mb-2 ms-1" style={{ fontSize: '0.65rem', letterSpacing: '1px', textTransform: 'uppercase' }}>Carnês e Documentos</div>
+                  <div className="bg-white rounded-4 shadow-sm overflow-hidden p-3 d-flex align-items-center justify-content-between"
+                    onClick={() => setActiveTab('carnes')} style={{ cursor: 'pointer' }}>
+                    <div className="d-flex align-items-center gap-3">
+                      <div className="rounded-3 p-2 d-flex align-items-center justify-content-center"
+                        style={{ backgroundColor: 'rgba(168, 85, 247, 0.1)', color: '#a855f7' }}>
+                        <i className="bi bi-file-earmark-text-fill fs-5"></i>
+                      </div>
+                      <span className="fw-bold text-dark">Meus Contratos</span>
+                    </div>
+                    <i className="bi bi-chevron-right text-muted small"></i>
+                  </div>
+                </div>
+
+                <button className="btn btn-danger w-100 rounded-4 py-3 fw-bold d-flex align-items-center justify-content-center gap-2 shadow-sm mb-4"
+                  style={{ background: '#E31A2D' }}>
+                  <i className="bi bi-box-arrow-left"></i> Sair da Conta
+                </button>
+
+                <div className="text-center pb-5 mb-3">
+                  <div className="fw-bold text-muted mb-1" style={{ fontSize: '0.6rem', letterSpacing: '0.1em' }}>MM MAGAZINE DIGITAL</div>
+                  <div className="text-muted" style={{ fontSize: '0.6rem' }}>Versão 3.4.12 (Build 2024)</div>
                 </div>
               </div>
             )}
@@ -426,28 +550,28 @@ export default function ClienteContratosPage() {
 
           {/* Bottom Nav */}
           <div className="bottom-nav">
-            <button 
+            <button
               className={`nav-item border-0 bg-transparent ${activeTab === 'inicio' ? 'active' : ''}`}
               onClick={() => setActiveTab('inicio')}
             >
               <i className={`bi bi-house-door${activeTab === 'inicio' ? '-fill' : ''} nav-icon`}></i>
               <span className="nav-label">Início</span>
             </button>
-            <button 
-              className={`nav-item border-0 bg-transparent ${activeTab === 'extrato' ? 'active' : ''}`}
-              onClick={() => setActiveTab('extrato')}
+            <button
+              className={`nav-item border-0 bg-transparent ${activeTab === 'suporte' ? 'active' : ''}`}
+              onClick={() => setActiveTab('suporte')}
             >
-              <i className={`bi bi-file-earmark-text${activeTab === 'extrato' ? '-fill' : ''} nav-icon`}></i>
-              <span className="nav-label">Extrato</span>
+              <i className={`bi bi-headset nav-icon`}></i>
+              <span className="nav-label">Suporte</span>
             </button>
-            <button 
+            <button
               className={`nav-item border-0 bg-transparent ${activeTab === 'carnes' ? 'active' : ''}`}
               onClick={() => setActiveTab('carnes')}
             >
               <i className={`bi bi-collection${activeTab === 'carnes' ? '-fill' : ''} nav-icon`}></i>
               <span className="nav-label">Carnês</span>
             </button>
-            <button 
+            <button
               className={`nav-item border-0 bg-transparent ${activeTab === 'perfil' ? 'active' : ''}`}
               onClick={() => setActiveTab('perfil')}
             >
