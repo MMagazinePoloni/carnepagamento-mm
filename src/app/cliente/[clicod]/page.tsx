@@ -1,10 +1,11 @@
 "use client"
-import { useEffect, useMemo, useState } from "react"
-import { useParams, useSearchParams } from "next/navigation"
+import { useCallback, useEffect, useMemo, useState } from "react"
+import { useParams, useSearchParams, useRouter } from "next/navigation"
 import { supabase } from "../../../lib/supabaseClient"
 import type { Installment, InstallmentStatus } from "../../../lib/types"
 import InstallmentCard from "../../../components/InstallmentCard"
-import PaymentModal from "../../../components/PaymentModal"
+import InstallmentDetailScreen from "../../../components/InstallmentDetailScreen"
+import PaymentScreen from "../../../components/PaymentScreen"
 import { decodeClientId } from "../../../lib/obfuscate"
 
 type ContractWithInstallments = {
@@ -18,6 +19,7 @@ type ContractWithInstallments = {
 export default function ClienteContratosPage() {
   const params = useParams()
   const searchParams = useSearchParams()
+  const router = useRouter()
   const rawToken = params?.clicod as string
   const clicod = useMemo(() => Number(decodeClientId(rawToken)), [rawToken])
   const [loading, setLoading] = useState(true)
@@ -29,9 +31,26 @@ export default function ClienteContratosPage() {
   const initialTab = (searchParams?.get("tab") as 'inicio' | 'suporte' | 'carnes' | 'perfil') || 'inicio'
   const [activeTab, setActiveTab] = useState<'inicio' | 'suporte' | 'carnes' | 'perfil'>(initialTab)
   const [installmentFilter, setInstallmentFilter] = useState<'tudo' | 'aberto' | 'atrasado'>('tudo')
-  const [paying, setPaying] = useState<{ open: boolean; installment?: Installment }>({
-    open: false
-  })
+  const [selectedInstallment, setSelectedInstallment] = useState<Installment | null>(null)
+  const [screenMode, setScreenMode] = useState<'none' | 'detail' | 'payment'>('none')
+  const [showPaymentSuccess, setShowPaymentSuccess] = useState(false)
+
+  // Detect ?payment=success from AbacatePay redirect
+  useEffect(() => {
+    if (searchParams?.get("payment") === "success") {
+      setShowPaymentSuccess(true)
+    }
+  }, [searchParams])
+
+  const dismissPaymentSuccess = useCallback(() => {
+    setShowPaymentSuccess(false)
+    // Remove query param from URL without reload
+    const url = new URL(window.location.href)
+    url.searchParams.delete("payment")
+    router.replace(url.pathname + url.search, { scroll: false })
+    // Reload data to get updated statuses
+    window.location.reload()
+  }, [router])
 
   useEffect(() => {
     let mounted = true
@@ -68,10 +87,23 @@ export default function ClienteContratosPage() {
     return () => { mounted = false }
   }, [clicod])
 
-  const openPayment = (inst: Installment) =>
-    setPaying({ open: true, installment: inst })
+  const openDetail = (inst: Installment) => {
+    setSelectedInstallment(inst)
+    setScreenMode('detail')
+  }
 
-  const closePayment = () => setPaying({ open: false })
+  const openPaymentFromDetail = () => {
+    setScreenMode('payment')
+  }
+
+  const closeScreens = () => {
+    setScreenMode('none')
+    setSelectedInstallment(null)
+  }
+
+  const goBackFromPayment = () => {
+    setScreenMode('detail')
+  }
 
   const nextInstallment = useMemo(() => {
     const all = contracts.flatMap(c => c.installments).filter(i => i.status !== "pago")
@@ -224,7 +256,7 @@ export default function ClienteContratosPage() {
                     </div>
 
                     <div className="payment-actions">
-                      <button className="btn-pay shadow-sm" onClick={() => openPayment(nextInstallment)}>
+                      <button className="btn-pay shadow-sm" onClick={() => openDetail(nextInstallment)}>
                         <i className="bi bi-cash-coin"></i>
                         Pagar Agora
                       </button>
@@ -452,7 +484,7 @@ export default function ClienteContratosPage() {
                                   <InstallmentCard
                                     key={inst.id}
                                     installment={inst}
-                                    onPay={() => openPayment(inst)}
+                                    onPay={() => openDetail(inst)}
                                   />
                                 ))}
                               </div>
@@ -582,16 +614,25 @@ export default function ClienteContratosPage() {
         </>
       )}
 
-      {paying.open && paying.installment && (
-        <PaymentModal
-          installment={paying.installment}
-          onClose={closePayment}
+      {screenMode === 'detail' && selectedInstallment && (
+        <InstallmentDetailScreen
+          installment={selectedInstallment}
+          onBack={closeScreens}
+          onPay={openPaymentFromDetail}
+          onHelp={() => setActiveTab('suporte')}
+        />
+      )}
+
+      {screenMode === 'payment' && selectedInstallment && (
+        <PaymentScreen
+          installment={selectedInstallment}
+          onBack={goBackFromPayment}
           onStatusChange={(newStatus: InstallmentStatus) => {
             setContracts((prev) =>
               prev.map((c) => ({
                 ...c,
                 installments: c.installments.map((i) =>
-                  i.id === paying.installment!.id
+                  i.id === selectedInstallment.id
                     ? { ...i, status: newStatus }
                     : i
                 )
@@ -599,6 +640,38 @@ export default function ClienteContratosPage() {
             )
           }}
         />
+      )}
+
+      {/* Payment Success Overlay */}
+      {showPaymentSuccess && (
+        <div className="payment-success-overlay animate__animated animate__fadeIn">
+          <div className="payment-success-content animate__animated animate__zoomIn">
+            <div className="payment-success-icon-wrapper">
+              <div className="payment-success-icon-bg">
+                <i className="bi bi-check-lg"></i>
+              </div>
+              <div className="payment-success-ring"></div>
+            </div>
+            <h2 className="payment-success-title">Pagamento Confirmado!</h2>
+            <p className="payment-success-subtitle">
+              Seu pagamento foi processado com sucesso pelo AbacatePay.
+            </p>
+            <div className="payment-success-details">
+              <div className="payment-success-detail-row">
+                <i className="bi bi-shield-check"></i>
+                <span>Transação segura e verificada</span>
+              </div>
+              <div className="payment-success-detail-row">
+                <i className="bi bi-clock-history"></i>
+                <span>Comprovante disponível em instantes</span>
+              </div>
+            </div>
+            <button className="payment-success-btn" onClick={dismissPaymentSuccess}>
+              <i className="bi bi-house-door me-2"></i>
+              Voltar ao Início
+            </button>
+          </div>
+        </div>
       )}
     </div>
   )
