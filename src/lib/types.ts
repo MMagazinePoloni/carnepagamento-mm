@@ -20,6 +20,7 @@ export interface Installment {
   fine_amount?: number
   pix_charge_id?: string | null
   pcrnot?: number
+  clicod?: number
 }
 
 export interface PaymentHistory {

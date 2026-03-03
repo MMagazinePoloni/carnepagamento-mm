@@ -120,7 +120,9 @@ export default function PaymentScreen({
                 body: JSON.stringify({
                     chargeId: pixId,
                     pvenum: installment.pcrnot || null,
-                    npeseq: installment.index || null
+                    npeseq: installment.index || null,
+                    clicod: installment.clicod || null,
+                    amount: installment.amount || null
                 })
             })
             const data = await res.json()

@@ -80,6 +80,29 @@ export async function POST(req: Request) {
                                 .eq("PVENUM", pvenum)
                                 .eq("NPESEQ", npeseq)
                             console.log("NVENDA atualizado:", { pvenum, npeseq })
+
+                            // Upsert FBCRECEBER
+                            const { data: nvRow } = await supa
+                                .from("NVENDA")
+                                .select("CLICOD, PVETPA")
+                                .eq("PVENUM", pvenum)
+                                .eq("NPESEQ", npeseq)
+                                .maybeSingle()
+                            const wClicod = nvRow ? Number((nvRow as any).CLICOD) : null
+                            const wValor = nvRow ? Number((nvRow as any).PVETPA) : 0
+                            if (wClicod) {
+                                const today = new Date().toISOString().split("T")[0]
+                                await supa.from("FBCRECEBER").upsert({
+                                    CLICOD: wClicod,
+                                    PCRNOT: pvenum,
+                                    FCRPAR: npeseq,
+                                    FBRVLR: wValor,
+                                    COBCOD: 7,
+                                    FBRPGT: today,
+                                    ACATUR: 1
+                                }, { onConflict: "PCRNOT,FCRPAR" })
+                                console.log("FBCRECEBER upserted via webhook (pix):", { pvenum, npeseq, wClicod })
+                            }
                         }
                     }
                 }
@@ -111,6 +134,29 @@ export async function POST(req: Request) {
                                     .update({ PAGCOD: 7 })
                                     .eq("PVENUM", pvenum)
                                     .eq("NPESEQ", npeseq)
+
+                                // Upsert FBCRECEBER
+                                const { data: nvRow2 } = await supa
+                                    .from("NVENDA")
+                                    .select("CLICOD, PVETPA")
+                                    .eq("PVENUM", pvenum)
+                                    .eq("NPESEQ", npeseq)
+                                    .maybeSingle()
+                                const wClicod2 = nvRow2 ? Number((nvRow2 as any).CLICOD) : null
+                                const wValor2 = nvRow2 ? Number((nvRow2 as any).PVETPA) : 0
+                                if (wClicod2) {
+                                    const today = new Date().toISOString().split("T")[0]
+                                    await supa.from("FBCRECEBER").upsert({
+                                        CLICOD: wClicod2,
+                                        PCRNOT: pvenum,
+                                        FCRPAR: npeseq,
+                                        FBRVLR: wValor2,
+                                        COBCOD: 7,
+                                        FBRPGT: today,
+                                        ACATUR: 1
+                                    }, { onConflict: "PCRNOT,FCRPAR" })
+                                    console.log("FBCRECEBER upserted via webhook (billing):", { pvenum, npeseq, wClicod2 })
+                                }
                             }
                         }
                     }
