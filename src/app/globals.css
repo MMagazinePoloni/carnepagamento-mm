@@ -28,9 +28,241 @@ body {
   min-height: 100vh;
 }
 
+/* ========================================
+   DESKTOP SIDEBAR (hidden on mobile)
+   ======================================== */
+.desktop-sidebar {
+  display: none;
+}
+
+/* Tab content animation */
+.tab-content-animated {
+  animation: tabFadeIn 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes tabFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ========================================
+   DESKTOP LAYOUT (≥768px)
+   ======================================== */
 @media (min-width: 768px) {
+
+  /* Sidebar visible on desktop */
+  .desktop-sidebar {
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 260px;
+    height: 100vh;
+    background: linear-gradient(180deg, #1A1A2E 0%, #16213E 50%, #0F3460 100%);
+    z-index: 150;
+    padding: 0;
+    animation: sidebarSlideIn 0.5s cubic-bezier(0.4, 0, 0.2, 1) both;
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.15);
+  }
+
+  @keyframes sidebarSlideIn {
+    from {
+      transform: translateX(-100%);
+      opacity: 0;
+    }
+
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+
+  /* Sidebar Brand */
+  .sidebar-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 1.75rem 1.5rem 1.5rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .sidebar-logo {
+    width: 44px;
+    height: 44px;
+    background: var(--primary-red);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(227, 26, 45, 0.4);
+  }
+
+  .sidebar-logo-text {
+    color: white;
+    font-weight: 800;
+    font-size: 1.1rem;
+    letter-spacing: -0.02em;
+  }
+
+  .sidebar-brand-name {
+    color: white;
+    font-weight: 700;
+    font-size: 1rem;
+    line-height: 1.2;
+  }
+
+  .sidebar-brand-subtitle {
+    color: rgba(255, 255, 255, 0.45);
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+
+  /* Sidebar Nav */
+  .sidebar-nav {
+    flex: 1;
+    padding: 1.25rem 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .sidebar-nav-item {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 0.85rem 1rem;
+    border: none;
+    background: transparent;
+    border-radius: 12px;
+    color: rgba(255, 255, 255, 0.55);
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .sidebar-nav-item:hover {
+    background: rgba(255, 255, 255, 0.06);
+    color: rgba(255, 255, 255, 0.85);
+    transform: translateX(2px);
+  }
+
+  .sidebar-nav-item.active {
+    background: rgba(227, 26, 45, 0.15);
+    color: white;
+  }
+
+  .sidebar-nav-indicator {
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%) scaleY(0);
+    width: 3px;
+    height: 24px;
+    background: var(--primary-red);
+    border-radius: 0 4px 4px 0;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .sidebar-nav-item.active .sidebar-nav-indicator {
+    transform: translateY(-50%) scaleY(1);
+  }
+
+  .sidebar-nav-icon {
+    font-size: 1.2rem;
+    transition: transform 0.3s ease;
+  }
+
+  .sidebar-nav-item.active .sidebar-nav-icon {
+    color: var(--primary-red);
+    transform: scale(1.1);
+  }
+
+  .sidebar-nav-label {
+    transition: color 0.3s ease;
+  }
+
+  /* Sidebar Footer / User */
+  .sidebar-footer {
+    padding: 1rem 1.25rem 1.5rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .sidebar-user {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0.75rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    transition: background 0.3s ease;
+  }
+
+  .sidebar-user:hover {
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .sidebar-user-avatar {
+    width: 36px;
+    height: 36px;
+    background: var(--primary-red);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1rem;
+    box-shadow: 0 2px 8px rgba(227, 26, 45, 0.3);
+  }
+
+  .sidebar-user-name {
+    color: white;
+    font-weight: 700;
+    font-size: 0.8rem;
+  }
+
+  .sidebar-user-role {
+    color: rgba(255, 255, 255, 0.4);
+    font-size: 0.6rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  /* Main Content pushed by sidebar */
   .dashboard-container {
-    padding: 3rem 2rem 6rem 2rem;
+    padding: 2rem 2rem 3rem 2rem;
+    display: flex;
+    gap: 0;
+  }
+
+  .main-content-area {
+    margin-left: 260px;
+    flex: 1;
+    max-width: 940px;
+    padding: 1rem 1rem 2rem;
+  }
+
+  /* Hide bottom nav on desktop */
+  .bottom-nav {
+    display: none !important;
+  }
+
+  /* Hide mobile menu button on desktop */
+  .menu-btn {
+    display: none;
   }
 
   .header-top {
@@ -280,11 +512,51 @@ body {
 
 .custom-installment-card {
   margin-bottom: 1rem;
-  transition: transform 0.2s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  cursor: pointer;
+  position: relative;
 }
 
 .custom-installment-card:hover {
   transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08) !important;
+}
+
+.custom-installment-card:active {
+  transform: scale(0.98);
+}
+
+.custom-installment-card.card-atrasado {
+  border-left: 4px solid var(--primary-red) !important;
+}
+
+.custom-installment-card.card-pago {
+  opacity: 0.8;
+}
+
+.card-chevron {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #F1F5F9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #94A3B8;
+  font-size: 0.85rem;
+  transition: background 0.2s ease;
+}
+
+.custom-installment-card:hover .card-chevron {
+  background: #E2E8F0;
+  color: #64748B;
+}
+
+.card-paid-date {
+  font-size: 0.6rem;
+  font-weight: 600;
+  color: #A0AEC0;
+  white-space: nowrap;
 }
 
 .stat-icon {
@@ -423,6 +695,9 @@ body {
   box-shadow: 0 -4px 15px rgba(0, 0, 0, 0.05);
   z-index: 100;
   padding: 0 1rem;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  background: rgba(255, 255, 255, 0.92);
 }
 
 .nav-item {
@@ -432,20 +707,84 @@ body {
   gap: 4px;
   color: var(--text-muted);
   text-decoration: none;
+  position: relative;
+  transition: color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  padding: 6px 12px;
+}
+
+.nav-item:active {
+  animation: navBounce 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes navBounce {
+  0% {
+    transform: scale(1);
+  }
+
+  30% {
+    transform: scale(0.85);
+  }
+
+  60% {
+    transform: scale(1.1);
+  }
+
+  100% {
+    transform: scale(1);
+  }
 }
 
 .nav-item.active {
   color: var(--primary-red);
+  transform: translateY(-2px);
+}
+
+/* Active dot indicator */
+.nav-item.active::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 50%;
+  transform: translateX(-50%) scale(1);
+  width: 5px;
+  height: 5px;
+  background: var(--primary-red);
+  border-radius: 50%;
+  animation: dotAppear 0.35s cubic-bezier(0.4, 0, 0.2, 1) both;
+  box-shadow: 0 0 8px rgba(227, 26, 45, 0.4);
+}
+
+@keyframes dotAppear {
+  from {
+    transform: translateX(-50%) scale(0);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateX(-50%) scale(1);
+    opacity: 1;
+  }
 }
 
 .nav-icon {
   font-size: 1.25rem;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.nav-item.active .nav-icon {
+  transform: scale(1.15);
 }
 
 .nav-label {
   font-size: 0.6rem;
   font-weight: 700;
   text-transform: uppercase;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.nav-item.active .nav-label {
+  font-weight: 800;
 }
 
 /* Badges */
@@ -480,6 +819,182 @@ body {
 
 .cursor-pointer {
   cursor: pointer;
+}
+
+/* ========================================
+   MODERN CONTRACT CARD
+   ======================================== */
+.contract-card-modern {
+  background: var(--white);
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(0, 0, 0, 0.03);
+  margin-bottom: 1rem;
+  position: relative;
+  transition: box-shadow 0.3s ease, transform 0.25s ease;
+}
+
+.contract-card-modern:hover {
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(0, 0, 0, 0.04);
+  transform: translateY(-2px);
+}
+
+.contract-card-accent {
+  height: 4px;
+  background: linear-gradient(90deg, var(--primary-red) 0%, #FF6B6B 40%, #FFA07A 100%);
+}
+
+.contract-card-header {
+  padding: 1.1rem 1.25rem 1rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.contract-card-top-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 0.85rem;
+}
+
+.contract-card-icon-wrapper {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #FFF0F0 0%, #FFE4E4 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--primary-red);
+  font-size: 1.15rem;
+  flex-shrink: 0;
+}
+
+.contract-card-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.contract-card-label {
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.contract-card-number {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--text-dark);
+  letter-spacing: -0.01em;
+}
+
+.contract-card-toggle {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #F4F5F7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #8E8E93;
+  font-size: 0.85rem;
+  transition: background 0.2s ease, transform 0.3s ease;
+  flex-shrink: 0;
+}
+
+.contract-card-modern:hover .contract-card-toggle {
+  background: #ECEDF0;
+}
+
+.contract-card-stats-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 0.75rem;
+}
+
+.contract-card-stat-value {
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: var(--text-dark);
+  line-height: 1.2;
+}
+
+.contract-card-stat-label {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.contract-card-badges {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.contract-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.6rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.contract-badge-late {
+  background: rgba(227, 26, 45, 0.1);
+  color: var(--primary-red);
+}
+
+.contract-badge-open {
+  background: rgba(0, 123, 255, 0.08);
+  color: #007BFF;
+}
+
+.contract-badge-paid {
+  background: rgba(72, 187, 120, 0.1);
+  color: #38A169;
+}
+
+.contract-card-progress {
+  height: 4px;
+  background: #F0F1F3;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.contract-card-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #48BB78, #68D391);
+  border-radius: 999px;
+  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  min-width: 0;
+}
+
+.contract-card-body {
+  padding: 0.75rem 1.25rem 1.25rem;
+  border-top: 1px solid #F0F1F3;
+  animation: contractBodyIn 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes contractBodyIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Carnês Screen Styles */
@@ -615,27 +1130,7 @@ body {
   border-color: var(--primary-red);
 }
 
-.btn-agendar {
-  background: #EBF4FF;
-  color: #007BFF;
-  border: none;
-  padding: 8px 16px;
-  border-radius: var(--radius-md);
-  font-weight: 700;
-  font-size: 0.85rem;
-}
-
-.btn-receipt {
-  width: 40px;
-  height: 40px;
-  background: #F1F5F9;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #94A3B8;
-  font-size: 1.25rem;
-}
+/* btn-agendar and btn-receipt removed — cards are fully clickable now */
 
 /* Suporte & Perfil Screens */
 .bg-app {
@@ -1377,4 +1872,354 @@ body {
 .payment-success-btn:active {
   transform: scale(0.97);
   box-shadow: 0 3px 12px rgba(227, 26, 45, 0.2);
+}
+
+/* ========================================
+   LOJAS (STORE LOCATOR) SCREEN
+   ======================================== */
+.lojas-tab-container {
+  padding: 0 1rem;
+}
+
+.lojas-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+}
+
+/* Search */
+.lojas-search {
+  display: flex;
+  align-items: center;
+  background: var(--white);
+  border-radius: 14px;
+  padding: 0 14px;
+  height: 52px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  border: 1px solid #ECECEF;
+  margin-bottom: 1rem;
+  gap: 10px;
+}
+
+.lojas-search-icon {
+  color: var(--text-muted);
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.lojas-search-input {
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-dark);
+  flex: 1;
+  height: 100%;
+}
+
+.lojas-search-input::placeholder {
+  color: #B0B0B8;
+}
+
+.lojas-search-locate {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1.5px solid #E2E8F0;
+  background: transparent;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.lojas-search-locate:hover {
+  background: var(--primary-red);
+  color: white;
+  border-color: var(--primary-red);
+}
+
+/* Map */
+.lojas-map {
+  position: relative;
+  width: 100%;
+  height: 220px;
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  margin-bottom: 1.5rem;
+  background: linear-gradient(135deg, #fef3f2 0%, #fde8e8 25%, #f3e8ff 50%, #e0f2fe 75%, #ecfdf5 100%);
+}
+
+.lojas-map-gradient {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 45%, rgba(227, 26, 45, 0.06) 0%, transparent 60%);
+  z-index: 1;
+}
+
+.lojas-map-grid {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.lojas-map-gridline-h {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: rgba(0, 0, 0, 0.03);
+}
+
+.lojas-map-gridline-v {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: rgba(0, 0, 0, 0.03);
+}
+
+/* Pin */
+.lojas-pin {
+  position: absolute;
+  z-index: 5;
+  transform: translate(-50%, -100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  animation: pinBounce 2s ease-in-out infinite;
+}
+
+@keyframes pinBounce {
+
+  0%,
+  100% {
+    transform: translate(-50%, -100%);
+  }
+
+  50% {
+    transform: translate(-50%, calc(-100% - 8px));
+  }
+}
+
+.lojas-pin-icon {
+  width: 42px;
+  height: 50px;
+  background: var(--primary-red);
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(227, 26, 45, 0.35);
+}
+
+.lojas-pin-icon i {
+  transform: rotate(45deg);
+  color: white;
+  font-size: 1.1rem;
+}
+
+.lojas-pin-shadow {
+  width: 24px;
+  height: 6px;
+  background: rgba(0, 0, 0, 0.12);
+  border-radius: 50%;
+  margin-top: 6px;
+  animation: pinShadow 2s ease-in-out infinite;
+}
+
+@keyframes pinShadow {
+
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.12;
+  }
+
+  50% {
+    transform: scale(0.7);
+    opacity: 0.06;
+  }
+}
+
+/* List */
+.lojas-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+  padding: 0 4px;
+}
+
+.lojas-count-badge {
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: var(--mm-card-blue);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.lojas-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Store Card */
+.loja-card {
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+  border: 1px solid #f0f0f0;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.loja-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+}
+
+.loja-card-content {
+  padding: 1.25rem;
+}
+
+.loja-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 0.75rem;
+}
+
+.loja-name {
+  font-weight: 800;
+  font-size: 0.95rem;
+  color: var(--text-dark);
+  margin: 0 0 6px;
+}
+
+.loja-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.55rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+
+.loja-status-badge i {
+  font-size: 0.3rem;
+}
+
+.loja-status-aberto {
+  background: #ECFDF5;
+  color: #059669;
+  border: 1px solid #A7F3D0;
+}
+
+.loja-status-fechado {
+  background: #FEF2F2;
+  color: #DC2626;
+  border: 1px solid #FECACA;
+}
+
+.loja-icon-box {
+  width: 44px;
+  height: 44px;
+  background: #FFF0F0;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--primary-red);
+  font-size: 1.2rem;
+  flex-shrink: 0;
+}
+
+.loja-address {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: #6B7280;
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+.loja-address i {
+  color: var(--primary-red);
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.loja-distance {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--primary-red);
+  margin-bottom: 12px;
+}
+
+.loja-distance i {
+  font-size: 0.65rem;
+}
+
+.loja-info-row {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.loja-info-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  color: #6B7280;
+  font-weight: 500;
+}
+
+.loja-info-item i {
+  color: #9CA3AF;
+  font-size: 0.8rem;
+}
+
+.loja-directions-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 14px;
+  background: #059669;
+  color: white;
+  border: none;
+  border-radius: var(--radius-md);
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.2s ease, transform 0.15s ease;
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.25);
+}
+
+.loja-directions-btn:hover {
+  background: #047857;
+  color: white;
+}
+
+.loja-directions-btn:active {
+  transform: scale(0.97);
 }

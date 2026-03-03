@@ -56,6 +56,22 @@ export async function GET(
             return NextResponse.json({ customerName, contracts: [] })
         }
 
+        // Fetch FBCRECEBER to determine which installments are paid
+        const { data: fbcData } = await supa
+            .from("FBCRECEBER")
+            .select("PCRNOT, FCRPAR, FBRVLR")
+            .eq("CLICOD", clicod)
+
+        // Build a Set of "PCRNOT-FCRPAR" keys where FBRVLR > 0 (paid)
+        const paidSet = new Set<string>()
+        if (fbcData) {
+            for (const row of fbcData as any[]) {
+                if (Number(row.FBRVLR) > 0) {
+                    paidSet.add(`${row.PCRNOT}-${row.FCRPAR}`)
+                }
+            }
+        }
+
         function addDays(base: string, days: number) {
             const d = new Date(base)
             d.setDate(d.getDate() + days)
@@ -85,12 +101,17 @@ export async function GET(
                 item.firstDate = row.PVEDAT
             }
 
-            const pago = Number(row.PAGCOD) === 7
             const idx = Number(row.NPESEQ)
             const firstIsBoleto = String(row.PAGDES || "").toUpperCase() === "BOLETO" || Number(row.PAGCOD) === 5
             const due = firstIsBoleto
                 ? addDays(item.firstDate, 30 * idx)
                 : addDays(item.firstDate, 30 * (idx - 1))
+
+            // Check paid status from FBCRECEBER first, then fallback to NVENDA.PAGCOD
+            const fbcKey = `${num}-${idx}`
+            const pagoFbc = paidSet.has(fbcKey)
+            const pagoNvenda = Number(row.PAGCOD) === 7
+            const pago = pagoFbc || pagoNvenda
 
             item.installments.push({
                 id: `${row.PVENUM}-${row.NPESEQ}`,
@@ -105,7 +126,8 @@ export async function GET(
                         ? "atrasado"
                         : "pendente",
                 pix_charge_id: null,
-                pcrnot: Number(row.PVENUM)
+                pcrnot: Number(row.PVENUM),
+                clicod: clicod
             })
         }
 

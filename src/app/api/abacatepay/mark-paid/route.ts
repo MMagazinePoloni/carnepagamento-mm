@@ -5,11 +5,11 @@ import { createClient } from "@supabase/supabase-js"
  * Server-side endpoint to mark a payment as paid.
  * Uses SUPABASE_SERVICE_ROLE_KEY to bypass RLS.
  * POST /api/abacatepay/mark-paid
- * Body: { chargeId: "pix_char_xxx", pvenum?: number, npeseq?: number }
+ * Body: { chargeId: "pix_char_xxx", pvenum?: number, npeseq?: number, clicod?: number }
  */
 export async function POST(req: Request) {
     try {
-        const { chargeId, pvenum, npeseq } = await req.json()
+        const { chargeId, pvenum, npeseq, clicod, amount } = await req.json()
 
         if (!chargeId) {
             return NextResponse.json({ error: "chargeId ausente" }, { status: 400 })
@@ -47,6 +47,49 @@ export async function POST(req: Request) {
 
             if (nvErr) console.error("mark-paid NVENDA error:", nvErr)
             else console.log("mark-paid NVENDA updated:", { pvenum, npeseq })
+
+            // Upsert into FBCRECEBER to persist paid status
+            let finalClicod = clicod
+            if (!finalClicod) {
+                // Fallback: fetch CLICOD from NVENDA
+                const { data: nvendaRow } = await supa
+                    .from("NVENDA")
+                    .select("CLICOD")
+                    .eq("PVENUM", pvenum)
+                    .eq("NPESEQ", npeseq)
+                    .maybeSingle()
+                if (nvendaRow) finalClicod = Number((nvendaRow as any).CLICOD)
+            }
+
+            if (finalClicod) {
+                // Get installment value for FBRVLR
+                let fbrvlr = amount || 0
+                if (!fbrvlr) {
+                    const { data: valRow } = await supa
+                        .from("NVENDA")
+                        .select("PVETPA")
+                        .eq("PVENUM", pvenum)
+                        .eq("NPESEQ", npeseq)
+                        .maybeSingle()
+                    if (valRow) fbrvlr = Number((valRow as any).PVETPA)
+                }
+
+                const today = new Date().toISOString().split("T")[0]
+                const { error: fbcErr } = await supa
+                    .from("FBCRECEBER")
+                    .upsert({
+                        CLICOD: finalClicod,
+                        PCRNOT: pvenum,
+                        FCRPAR: npeseq,
+                        FBRVLR: fbrvlr,
+                        COBCOD: 7,
+                        FBRPGT: today,
+                        ACATUR: 1
+                    }, { onConflict: "PCRNOT,FCRPAR" })
+
+                if (fbcErr) console.error("mark-paid FBCRECEBER error:", fbcErr)
+                else console.log("mark-paid FBCRECEBER upserted:", { PCRNOT: pvenum, FCRPAR: npeseq, CLICOD: finalClicod })
+            }
         }
 
         return NextResponse.json({ ok: true, updated: count })
