@@ -59,15 +59,20 @@ export async function GET(
         // Fetch FBCRECEBER to determine which installments are paid
         const { data: fbcData } = await supa
             .from("FBCRECEBER")
-            .select("PCRNOT, FCRPAR, FBRVLR")
+            .select("PCRNOT, FCRPAR, FBRVLR, FBRPGT")
             .eq("CLICOD", clicod)
 
-        // Build a Set of "PCRNOT-FCRPAR" keys where FBRVLR > 0 (paid)
+        // Build a Set of "PCRNOT-FCRPAR" keys where FBRVLR > 0 (paid) + payment dates
         const paidSet = new Set<string>()
+        const paymentDateMap = new Map<string, string>()
         if (fbcData) {
             for (const row of fbcData as any[]) {
                 if (Number(row.FBRVLR) > 0) {
-                    paidSet.add(`${row.PCRNOT}-${row.FCRPAR}`)
+                    const fbcKey = `${row.PCRNOT}-${row.FCRPAR}`
+                    paidSet.add(fbcKey)
+                    if (row.FBRPGT) {
+                        paymentDateMap.set(fbcKey, row.FBRPGT)
+                    }
                 }
             }
         }
@@ -113,6 +118,13 @@ export async function GET(
             const pagoNvenda = Number(row.PAGCOD) === 7
             const pago = pagoFbc || pagoNvenda
 
+            // Get payment date from FBCRECEBER
+            const fbcPayDate = paymentDateMap.get(fbcKey) || null
+
+            // Determine payment method from PAGDES
+            const pagDes = String(row.PAGDES || "").toUpperCase()
+            const paymentMethod = pago ? (pagDes === "PIX" ? "PIX" : pagDes === "BOLETO" ? "Boleto" : "PIX") : null
+
             item.installments.push({
                 id: `${row.PVENUM}-${row.NPESEQ}`,
                 contract_id: String(row.PVENUM),
@@ -127,7 +139,9 @@ export async function GET(
                         : "pendente",
                 pix_charge_id: null,
                 pcrnot: Number(row.PVENUM),
-                clicod: clicod
+                clicod: clicod,
+                payment_date: fbcPayDate,
+                payment_method: paymentMethod
             })
         }
 

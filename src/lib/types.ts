@@ -21,6 +21,8 @@ export interface Installment {
   pix_charge_id?: string | null
   pcrnot?: number
   clicod?: number
+  payment_date?: string | null
+  payment_method?: string | null
 }
 
 export interface PaymentHistory {

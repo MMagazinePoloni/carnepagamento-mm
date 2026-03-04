@@ -991,6 +991,7 @@ body {
     opacity: 0;
     transform: translateY(-8px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -2222,4 +2223,530 @@ body {
 
 .loja-directions-btn:active {
   transform: scale(0.97);
+}
+
+/* ========================================
+   HISTÓRICO (PAYMENT HISTORY) TAB
+   ======================================== */
+.historico-tab-container {
+  padding: 0 1rem;
+}
+
+.historico-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+}
+
+/* Progress Card */
+.historico-progress-card {
+  background: var(--white);
+  border-radius: var(--radius-xl);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  border: 1px solid #F0F0F0;
+}
+
+.historico-progress-inner {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+}
+
+.historico-progress-label {
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: 0.12em;
+  margin-bottom: 6px;
+}
+
+.historico-progress-count {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+
+.historico-progress-paid {
+  font-size: 2.2rem;
+  font-weight: 800;
+  color: var(--text-dark);
+  line-height: 1;
+}
+
+.historico-progress-separator {
+  font-size: 1.5rem;
+  font-weight: 300;
+  color: var(--text-muted);
+}
+
+.historico-progress-total {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.historico-progress-sublabel {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.historico-progress-balance {
+  text-align: right;
+}
+
+.historico-progress-balance-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--primary-red);
+  letter-spacing: 0.05em;
+  margin-bottom: 4px;
+}
+
+.historico-progress-balance-value {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--text-dark);
+}
+
+/* Progress Bar */
+.historico-progress-bar {
+  height: 6px;
+  background: #F0F0F0;
+  border-radius: 100px;
+  overflow: hidden;
+}
+
+.historico-progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--primary-red) 0%, #FF6B6B 100%);
+  border-radius: 100px;
+  transition: width 0.6s ease;
+}
+
+/* Timeline */
+.historico-timeline {
+  position: relative;
+}
+
+.historico-month-group {
+  margin-bottom: 1.5rem;
+}
+
+.historico-month-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: 0.1em;
+  margin-bottom: 1rem;
+  padding-left: 24px;
+}
+
+.historico-item {
+  display: flex;
+  align-items: stretch;
+  gap: 14px;
+  margin-bottom: 12px;
+  position: relative;
+  padding-left: 24px;
+}
+
+/* Timeline dot */
+.historico-item-dot {
+  position: absolute;
+  left: 0;
+  top: 22px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--primary-red);
+  box-shadow: 0 0 0 3px rgba(227, 26, 45, 0.15);
+  z-index: 2;
+}
+
+/* Timeline line between dots */
+.historico-item:not(:last-child)::before {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 34px;
+  bottom: -12px;
+  width: 2px;
+  background: rgba(227, 26, 45, 0.12);
+  z-index: 1;
+}
+
+/* Item Card */
+.historico-item-card {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  padding: 1rem;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+  border: 1px solid #F5F5F5;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.historico-item-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.07);
+}
+
+.historico-item-icon-box {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #FFF5F5 0%, #FFE8EA 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--primary-red);
+  font-size: 1.15rem;
+}
+
+.historico-item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.historico-item-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-dark);
+  margin-bottom: 2px;
+}
+
+.historico-item-sub {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.historico-item-right {
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.historico-item-amount {
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: var(--text-dark);
+  margin-bottom: 2px;
+}
+
+.historico-item-receipt {
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: var(--primary-red);
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 3px;
+}
+
+.historico-item-receipt:hover {
+  text-decoration: underline;
+}
+
+/* Empty State */
+.historico-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 2rem;
+  text-align: center;
+}
+
+.historico-empty i {
+  font-size: 3rem;
+  color: #CBD5E0;
+  margin-bottom: 1rem;
+}
+
+.historico-empty p {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+/* ========================================
+   HISTORY DETAIL / RECEIPT SCREEN
+   ======================================== */
+.hist-detail-screen {
+  position: fixed;
+  inset: 0;
+  background: var(--bg-app);
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  animation: slideInRight 0.3s ease;
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.hist-detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  background: var(--bg-app);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.hist-detail-body {
+  padding: 0 1.25rem 2rem;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Green Checkmark */
+.hist-check-wrapper {
+  margin-bottom: 1.25rem;
+}
+
+.hist-check-circle {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 24px rgba(34, 197, 94, 0.35);
+}
+
+.hist-check-circle i {
+  font-size: 2.2rem;
+  color: white;
+  font-weight: 900;
+}
+
+/* Title */
+.hist-title {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: var(--text-dark);
+  margin-bottom: 0.25rem;
+  text-align: center;
+}
+
+.hist-subtitle {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  margin-bottom: 1.75rem;
+  text-align: center;
+}
+
+/* Receipt Card */
+.hist-receipt-card {
+  background: var(--white);
+  border-radius: var(--radius-xl);
+  padding: 1.75rem 1.5rem;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+  border: 1px solid #F0F0F0;
+  width: 100%;
+  margin-bottom: 1.5rem;
+  position: relative;
+}
+
+.hist-receipt-amount-section {
+  text-align: center;
+  padding-bottom: 1.25rem;
+}
+
+.hist-receipt-amount-label {
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: 0.12em;
+  margin-bottom: 0.5rem;
+}
+
+.hist-receipt-amount-value {
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--text-dark);
+  line-height: 1;
+}
+
+.hist-receipt-divider {
+  height: 1px;
+  background: #F0F0F0;
+  margin: 0;
+}
+
+/* Receipt Rows */
+.hist-receipt-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 0;
+}
+
+.hist-receipt-row-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.hist-receipt-row-value {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-dark);
+  text-align: right;
+}
+
+.hist-receipt-method {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.hist-pix-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: var(--primary-red);
+  color: white;
+  font-size: 0.65rem;
+  font-weight: 800;
+}
+
+/* Transaction ID */
+.hist-receipt-id-section {
+  padding-top: 1rem;
+}
+
+.hist-receipt-id-label {
+  font-size: 0.55rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: 0.1em;
+  margin-bottom: 0.5rem;
+}
+
+.hist-receipt-id-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.hist-receipt-id-value {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  font-family: 'Courier New', monospace;
+  letter-spacing: 0.03em;
+}
+
+.hist-receipt-copy-btn {
+  border: none;
+  background: none;
+  color: var(--primary-red);
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  transition: background 0.15s ease;
+}
+
+.hist-receipt-copy-btn:hover {
+  background: #FFF0F0;
+}
+
+/* Action Buttons */
+.hist-share-btn {
+  width: 100%;
+  padding: 1rem;
+  border-radius: var(--radius-lg);
+  border: none;
+  background: var(--primary-red);
+  color: white;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 0.75rem;
+  box-shadow: 0 4px 16px rgba(227, 26, 45, 0.25);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.hist-share-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(227, 26, 45, 0.3);
+}
+
+.hist-share-btn:active {
+  transform: scale(0.98);
+}
+
+.hist-pdf-btn {
+  width: 100%;
+  padding: 0.9rem;
+  border-radius: var(--radius-lg);
+  border: 1.5px solid #E0E0E5;
+  background: var(--white);
+  color: var(--text-dark);
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 1.25rem;
+  transition: border-color 0.15s ease;
+}
+
+.hist-pdf-btn:hover {
+  border-color: var(--text-muted);
+}
+
+.hist-pdf-btn i {
+  color: var(--text-muted);
+}
+
+/* Legal Text */
+.hist-legal-text {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  text-align: center;
+  line-height: 1.5;
+  max-width: 280px;
+  margin: 0 auto;
+  font-weight: 500;
 }
