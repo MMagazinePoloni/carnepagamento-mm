@@ -28,11 +28,11 @@ export default function ClienteContratosPage() {
   const [customerName, setCustomerName] = useState<string | null>(null)
   const [expandedContract, setExpandedContract] = useState<number | null>(null)
 
-  const initialTab = (searchParams?.get("tab") as 'inicio' | 'suporte' | 'carnes' | 'perfil' | 'lojas') || 'inicio'
-  const [activeTab, setActiveTab] = useState<'inicio' | 'suporte' | 'carnes' | 'perfil' | 'lojas'>(initialTab)
+  const initialTab = (searchParams?.get("tab") as 'inicio' | 'suporte' | 'carnes' | 'perfil' | 'lojas' | 'historico') || 'inicio'
+  const [activeTab, setActiveTab] = useState<'inicio' | 'suporte' | 'carnes' | 'perfil' | 'lojas' | 'historico'>(initialTab)
   const [installmentFilter, setInstallmentFilter] = useState<'tudo' | 'aberto' | 'atrasado'>('tudo')
   const [selectedInstallment, setSelectedInstallment] = useState<Installment | null>(null)
-  const [screenMode, setScreenMode] = useState<'none' | 'detail' | 'payment'>('none')
+  const [screenMode, setScreenMode] = useState<'none' | 'detail' | 'payment' | 'history_detail'>('none')
   const [showPaymentSuccess, setShowPaymentSuccess] = useState(false)
 
   // Detect ?payment=success from AbacatePay redirect
@@ -160,6 +160,7 @@ export default function ClienteContratosPage() {
               {([
                 { key: 'inicio' as const, icon: 'house-door', label: 'Início' },
                 { key: 'carnes' as const, icon: 'collection', label: 'Carnês' },
+                { key: 'historico' as const, icon: 'clock-history', label: 'Histórico' },
                 { key: 'lojas' as const, icon: 'shop', label: 'Lojas' },
                 { key: 'suporte' as const, icon: 'headset', label: 'Suporte' },
                 { key: 'perfil' as const, icon: 'person', label: 'Perfil' },
@@ -760,6 +761,117 @@ export default function ClienteContratosPage() {
                   </div>
                 </div>
               )}
+
+              {activeTab === 'historico' && (
+                <div className="historico-tab-container pb-5">
+                  <div className="historico-header">
+                    <button className="back-btn shadow-sm" onClick={() => setActiveTab('inicio')}>
+                      <i className="bi bi-chevron-left"></i>
+                    </button>
+                    <h4 className="fw-bold m-0 text-dark">Histórico de Pagamentos</h4>
+                    <div style={{ width: '40px' }}></div>
+                  </div>
+
+                  {/* Carné Progress Card */}
+                  <div className="historico-progress-card">
+                    <div className="historico-progress-inner">
+                      <div>
+                        <div className="historico-progress-label">PROGRESSO DO CARNÊ</div>
+                        <div className="historico-progress-count">
+                          <span className="historico-progress-paid">{String(stats.paid).padStart(2, '0')}</span>
+                          <span className="historico-progress-separator">/</span>
+                          <span className="historico-progress-total">{String(stats.total).padStart(2, '0')}</span>
+                        </div>
+                        <div className="historico-progress-sublabel">Parcelas pagas</div>
+                      </div>
+                      <div className="historico-progress-balance">
+                        <div className="historico-progress-balance-label">Saldo Restante</div>
+                        <div className="historico-progress-balance-value">
+                          {Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(stats.totalAmount)}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="historico-progress-bar">
+                      <div
+                        className="historico-progress-bar-fill"
+                        style={{ width: `${(stats.paid / (stats.total || 1)) * 100}%` }}
+                      ></div>
+                    </div>
+                  </div>
+
+                  {/* Timeline */}
+                  <div className="historico-timeline">
+                    {(() => {
+                      const paidInstallments = contracts
+                        .flatMap(c => c.installments)
+                        .filter(i => i.status === 'pago')
+                        .sort((a, b) => {
+                          const dateA = a.payment_date || a.due_date;
+                          const dateB = b.payment_date || b.due_date;
+                          return new Date(dateB).getTime() - new Date(dateA).getTime();
+                        });
+
+                      if (paidInstallments.length === 0) {
+                        return (
+                          <div className="historico-empty">
+                            <i className="bi bi-clock-history"></i>
+                            <p>Nenhum pagamento realizado ainda.</p>
+                          </div>
+                        );
+                      }
+
+                      // Group by month/year using payment_date
+                      const grouped = new Map<string, typeof paidInstallments>();
+                      const monthLabels: Record<string, string> = {};
+                      for (const inst of paidInstallments) {
+                        const d = new Date(inst.payment_date || inst.due_date);
+                        const key = `${d.getFullYear()}-${String(d.getMonth()).padStart(2, '0')}`;
+                        monthLabels[key] = d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+                        if (!grouped.has(key)) grouped.set(key, []);
+                        grouped.get(key)!.push(inst);
+                      }
+
+                      return Array.from(grouped.entries()).map(([key, instList]) => (
+                        <div key={key} className="historico-month-group">
+                          <div className="historico-month-label">{monthLabels[key]?.toUpperCase()}</div>
+                          {instList.map((inst) => {
+                            const payDate = inst.payment_date || inst.due_date;
+                            const dateFormatted = new Date(payDate).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+                            const method = inst.payment_method || 'PIX';
+                            return (
+                              <div
+                                key={inst.id}
+                                className="historico-item"
+                                onClick={() => { setSelectedInstallment(inst); setScreenMode('history_detail'); }}
+                                style={{ cursor: 'pointer' }}
+                              >
+                                <div className="historico-item-dot"></div>
+                                <div className="historico-item-card">
+                                  <div className="historico-item-icon-box">
+                                    <i className="bi bi-receipt-cutoff"></i>
+                                  </div>
+                                  <div className="historico-item-info">
+                                    <div className="historico-item-title">Parcela {String(inst.index).padStart(2, '0')}</div>
+                                    <div className="historico-item-sub">{dateFormatted} • {method}</div>
+                                  </div>
+                                  <div className="historico-item-right">
+                                    <div className="historico-item-amount">
+                                      {Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(inst.amount)}
+                                    </div>
+                                    <div className="historico-item-receipt">
+                                      <i className="bi bi-chevron-right"></i>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ));
+                    })()}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -773,18 +885,18 @@ export default function ClienteContratosPage() {
               <span className="nav-label">Início</span>
             </button>
             <button
-              className={`nav-item border-0 bg-transparent ${activeTab === 'suporte' ? 'active' : ''}`}
-              onClick={() => setActiveTab('suporte')}
-            >
-              <i className={`bi bi-headset nav-icon`}></i>
-              <span className="nav-label">Suporte</span>
-            </button>
-            <button
               className={`nav-item border-0 bg-transparent ${activeTab === 'carnes' ? 'active' : ''}`}
               onClick={() => setActiveTab('carnes')}
             >
               <i className={`bi bi-collection${activeTab === 'carnes' ? '-fill' : ''} nav-icon`}></i>
               <span className="nav-label">Carnês</span>
+            </button>
+            <button
+              className={`nav-item border-0 bg-transparent ${activeTab === 'historico' ? 'active' : ''}`}
+              onClick={() => setActiveTab('historico')}
+            >
+              <i className={`bi bi-clock-history nav-icon`}></i>
+              <span className="nav-label">Histórico</span>
             </button>
             <button
               className={`nav-item border-0 bg-transparent ${activeTab === 'perfil' ? 'active' : ''}`}
@@ -804,6 +916,106 @@ export default function ClienteContratosPage() {
           onPay={openPaymentFromDetail}
           onHelp={() => setActiveTab('suporte')}
         />
+      )}
+
+      {screenMode === 'history_detail' && selectedInstallment && (
+        <div className="hist-detail-screen">
+          <div className="hist-detail-header">
+            <button className="back-btn shadow-sm" onClick={closeScreens}>
+              <i className="bi bi-chevron-left"></i>
+            </button>
+            <div style={{ width: '40px' }}></div>
+          </div>
+
+          <div className="hist-detail-body">
+            {/* Green Check */}
+            <div className="hist-check-wrapper">
+              <div className="hist-check-circle">
+                <i className="bi bi-check-lg"></i>
+              </div>
+            </div>
+
+            <h4 className="hist-title">Pagamento Realizado!</h4>
+            <p className="hist-subtitle">Seu carnê está em dia.</p>
+
+            {/* Receipt Card */}
+            <div className="hist-receipt-card">
+              <div className="hist-receipt-amount-section">
+                <div className="hist-receipt-amount-label">VALOR PAGO</div>
+                <div className="hist-receipt-amount-value">
+                  {Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(selectedInstallment.amount)}
+                </div>
+              </div>
+
+              <div className="hist-receipt-divider"></div>
+
+              <div className="hist-receipt-row">
+                <span className="hist-receipt-row-label">Data do Pagamento</span>
+                <span className="hist-receipt-row-value">
+                  {selectedInstallment.payment_date
+                    ? new Date(selectedInstallment.payment_date + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' }).replace('.', '')
+                    : 'N/A'}
+                </span>
+              </div>
+
+              <div className="hist-receipt-divider"></div>
+
+              <div className="hist-receipt-row">
+                <span className="hist-receipt-row-label">Forma de Pagamento</span>
+                <span className="hist-receipt-row-value hist-receipt-method">
+                  {(selectedInstallment.payment_method || 'PIX') === 'PIX' ? (
+                    <><span className="hist-pix-badge">$</span> PIX</>
+                  ) : (
+                    <><i className="bi bi-upc-scan me-1"></i> {selectedInstallment.payment_method}</>
+                  )}
+                </span>
+              </div>
+
+              <div className="hist-receipt-divider"></div>
+
+              <div className="hist-receipt-row">
+                <span className="hist-receipt-row-label">Parcela</span>
+                <span className="hist-receipt-row-value">
+                  Refere-se à {String(selectedInstallment.index).padStart(2, '0')}ª Parcela
+                </span>
+              </div>
+
+              <div className="hist-receipt-divider"></div>
+
+              <div className="hist-receipt-id-section">
+                <div className="hist-receipt-id-label">ID DA TRANSAÇÃO</div>
+                <div className="hist-receipt-id-row">
+                  <span className="hist-receipt-id-value">
+                    TRX-{selectedInstallment.contract_id}-{String(selectedInstallment.index).padStart(2, '0')}-MM
+                  </span>
+                  <button
+                    className="hist-receipt-copy-btn"
+                    onClick={() => {
+                      navigator.clipboard.writeText(`TRX-${selectedInstallment.contract_id}-${String(selectedInstallment.index).padStart(2, '0')}-MM`);
+                    }}
+                  >
+                    <i className="bi bi-clipboard"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <button className="hist-share-btn">
+              <i className="bi bi-share me-2"></i>
+              Compartilhar Comprovante
+            </button>
+
+            <button className="hist-pdf-btn">
+              <i className="bi bi-file-earmark-pdf me-2"></i>
+              Baixar PDF
+            </button>
+
+            <p className="hist-legal-text">
+              Este é um documento digital válido como comprovante de pagamento junto à rede de lojas MM.
+            </p>
+          </div>
+        </div>
       )}
 
       {screenMode === 'payment' && selectedInstallment && (
