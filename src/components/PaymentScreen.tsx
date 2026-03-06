@@ -13,7 +13,7 @@ export default function PaymentScreen({
 }: {
     installment: Installment
     onBack: () => void
-    onStatusChange: (newStatus: InstallmentStatus) => void
+    onStatusChange: (newStatus: InstallmentStatus, installment: Installment) => void
 }) {
     const [activeTab, setActiveTab] = useState<PaymentTab>("pix")
     const [loading, setLoading] = useState(true)
@@ -30,8 +30,11 @@ export default function PaymentScreen({
 
     const body = useMemo(() => ({
         installmentId: installment.id,
-        amount: totalAmount
-    }), [installment.id, totalAmount])
+        amount: totalAmount,
+        clicod: installment.clicod,
+        pvenum: installment.pcrnot,
+        index: installment.index
+    }), [installment.id, totalAmount, installment.clicod, installment.pcrnot, installment.index])
 
     const dueFormatted = new Date(installment.due_date).toLocaleDateString("pt-BR", {
         day: "numeric",
@@ -76,17 +79,6 @@ export default function PaymentScreen({
                 console.log("Charge criado:", newChargeId)
                 setBrCode(data.brCode)
                 setChargeId(newChargeId)
-
-                // Save payment record in Supabase
-                const { error: insertErr } = await supabase.from("payments").insert({
-                    installment_id: installment.id,
-                    amount: totalAmount,
-                    method: "pix",
-                    status: "pending",
-                    provider_id: newChargeId || null
-                })
-                if (insertErr) console.error("Erro ao inserir payment:", insertErr)
-                else console.log("Payment inserido com provider_id:", newChargeId)
 
                 if (installment.pcrnot) {
                     await supabase
@@ -136,7 +128,7 @@ export default function PaymentScreen({
         }
 
         setPaid(true)
-        onStatusChange("pago")
+        onStatusChange("pago", installment)
     }
 
     async function checkPaymentStatus(pixId: string): Promise<boolean> {

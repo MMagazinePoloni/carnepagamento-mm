@@ -21,11 +21,13 @@ export default function InstallmentCard({
     year: 'numeric'
   })
 
-  const paidDateFormatted = new Date(installment.due_date).toLocaleDateString("pt-BR", {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric'
-  })
+  const paidDateFormatted = installment.payment_date
+    ? new Date(installment.payment_date).toLocaleDateString("pt-BR", {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric'
+      })
+    : dueFormatted
 
   return (
     <div

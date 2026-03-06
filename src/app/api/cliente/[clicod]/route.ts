@@ -32,19 +32,20 @@ export async function GET(
 
         const supa = createClient(url, key)
 
-        // Fetch customer name
+        // Fetch customer name and CPF
         const { data: customerData } = await supa
             .from("CLIENTE")
-            .select("CLINOM")
+            .select("CLINOM, CLICGC")
             .eq("CLICOD", clicod)
             .maybeSingle()
 
         const customerName = customerData ? (customerData as any).CLINOM : null
+        const customerCpf = customerData ? (customerData as any).CLICGC : null
 
         const { data, error } = await supa
             .from("NVENDA")
             .select("PVENUM, PVEDAT, NPESEQ, PVETPA, PAGCOD, PAGDES, CLICOD")
-            .eq("CLICOD", String(clicod))
+            .eq("CLICOD", clicod) // Use number directly
             .order("PVENUM", { ascending: false })
             .order("NPESEQ", { ascending: true })
 
@@ -53,26 +54,48 @@ export async function GET(
         }
 
         if (!data || data.length === 0) {
-            return NextResponse.json({ customerName, contracts: [] })
+            return NextResponse.json({ customerName, customerCpf, contracts: [] })
         }
 
-        // Fetch FBCRECEBER to determine which installments are paid
+        // Fetch FCRECEBER to determine which installments are paid
         const { data: fbcData } = await supa
-            .from("FBCRECEBER")
-            .select("PCRNOT, FCRPAR, FBRVLR, FBRPGT")
+            .from("FCRECEBER")
+            .select("PCRNOT, FCRPAR, FCRVLP, FCRPGT")
             .eq("CLICOD", clicod)
 
-        // Build a Set of "PCRNOT-FCRPAR" keys where FBRVLR > 0 (paid) + payment dates
+        // Fetch PAGAMENTOS where status is 'paid' or 'processed'
+        const { data: pgtData } = await supa
+            .from("PAGAMENTOS")
+            .select("PCRNOT, FCRPAR, FCRPGT, STATUS, METHOD")
+            .eq("CLICOD", clicod)
+            .in("STATUS", ["paid", "processed"])
+
+        // Build a Set of "PCRNOT-FCRPAR" keys where payment is confirmed
         const paidSet = new Set<string>()
         const paymentDateMap = new Map<string, string>()
+        const paymentMethodMap = new Map<string, string>()
+
         if (fbcData) {
             for (const row of fbcData as any[]) {
-                if (Number(row.FBRVLR) > 0) {
+                // Consider paid if FCRPGT exists
+                const payDate = row.FCRPGT;
+                if (payDate) {
                     const fbcKey = `${row.PCRNOT}-${row.FCRPAR}`
                     paidSet.add(fbcKey)
-                    if (row.FBRPGT) {
-                        paymentDateMap.set(fbcKey, row.FBRPGT)
-                    }
+                    paymentDateMap.set(fbcKey, payDate)
+                }
+            }
+        }
+
+        if (pgtData) {
+            for (const row of pgtData as any[]) {
+                const pgtKey = `${row.PCRNOT}-${row.FCRPAR}`
+                paidSet.add(pgtKey)
+                if (row.FCRPGT) {
+                    paymentDateMap.set(pgtKey, row.FCRPGT)
+                }
+                if (row.METHOD) {
+                    paymentMethodMap.set(pgtKey, row.METHOD)
                 }
             }
         }
@@ -121,9 +144,10 @@ export async function GET(
             // Get payment date from FBCRECEBER
             const fbcPayDate = paymentDateMap.get(fbcKey) || null
 
-            // Determine payment method from PAGDES
+            // Determine payment method from PAGDES or PAGAMENTOS
             const pagDes = String(row.PAGDES || "").toUpperCase()
-            const paymentMethod = pago ? (pagDes === "PIX" ? "PIX" : pagDes === "BOLETO" ? "Boleto" : "PIX") : null
+            const pgtMethod = paymentMethodMap.get(fbcKey)
+            const paymentMethod = pago ? (pgtMethod || (pagDes === "PIX" ? "PIX" : pagDes === "BOLETO" ? "Boleto" : "PIX")) : null
 
             item.installments.push({
                 id: `${row.PVENUM}-${row.NPESEQ}`,
@@ -150,7 +174,7 @@ export async function GET(
             installments: c.installments.map(i => ({ ...i, count: c.count }))
         })).sort((a, b) => b.pvenum - a.pvenum)
 
-        return NextResponse.json({ customerName, contracts })
+        return NextResponse.json({ customerName, customerCpf, contracts })
 
     } catch (e) {
         console.error(e)

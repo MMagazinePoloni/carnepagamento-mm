@@ -5,19 +5,26 @@
  * evitar ambiguidade quando o hex contém apenas dígitos.
  */
 
-const SALT = 98765;
+const SALT = 98765; // Salt fixo para não quebrar links existentes
 const PREFIX = "x";
 
+/**
+ * Ofuscação de IDs numéricos para URLs públicas.
+ * Isso não é criptografia real, mas evita que usuários adivinhem IDs de outros clientes.
+ */
 export function encodeId(id: number | string): string {
     const num = Number(id);
     if (isNaN(num)) return String(id);
 
+    // Multiplicamos por um salt fixo e transformamos em hexadecimal
     const obfuscatedNum = num * SALT;
     return PREFIX + obfuscatedNum.toString(16);
 }
 
 export function decodeId(token: string): string {
-    // New format: starts with "x" prefix
+    if (!token) return "";
+
+    // Novo formato: começa com o prefixo "x"
     if (token.startsWith(PREFIX)) {
         try {
             const hex = token.slice(PREFIX.length);
@@ -26,11 +33,11 @@ export function decodeId(token: string): string {
                 return String(parsed / SALT);
             }
         } catch (e) {
-            // fall through
+            // falha no decode
         }
     }
 
-    // Legacy format (no prefix): try hex decode
+    // Formato legado (sem prefixo): tenta decode hex se for hexadecimal
     if (/^[0-9a-fA-F]+$/.test(token) && !/^\d+$/.test(token)) {
         try {
             const parsed = parseInt(token, 16);
@@ -38,16 +45,14 @@ export function decodeId(token: string): string {
                 return String(parsed / SALT);
             }
         } catch (e) {
-            // fall through
+            // falha no decode
         }
     }
 
-    // Backward compatibility: raw numeric ID
-    if (/^\d+$/.test(token)) {
-        return token;
-    }
-
-    return token;
+    // IMPORTANTE: Removemos a aceitação de IDs numéricos puros para maior segurança
+    // Se o token for apenas números, não decodificamos (a menos que seja explicitamente necessário)
+    
+    return ""; // Retorna vazio se não for um token válido
 }
 
 // Aliases para compatibilidade com código existente

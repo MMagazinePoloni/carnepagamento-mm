@@ -1,15 +1,19 @@
 import { NextResponse } from "next/server"
+import { createClient } from "@supabase/supabase-js"
 
 export async function POST(req: Request) {
   try {
-    const { installmentId, amount } = await req.json()
+    const { installmentId, amount, clicod, pvenum, index } = await req.json()
 
-    if (!installmentId || !amount) {
-      return NextResponse.json({ error: "Dados inválidos" }, { status: 400 })
+    // Validação básica de entrada
+    if (!installmentId || !amount || isNaN(Number(amount)) || isNaN(Number(clicod))) {
+      return NextResponse.json({ error: "Dados de entrada inválidos" }, { status: 400 })
     }
 
     const apiUrl = process.env.ABACATEPAY_API_URL
     const apiKey = process.env.ABACATEPAY_API_KEY
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ""
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || ""
 
     if (!apiUrl || !apiKey) {
       return NextResponse.json(
@@ -51,9 +55,27 @@ export async function POST(req: Request) {
 
     const json = JSON.parse(text)
     const data = json.data || json
+    const chargeId = data.id
+
+    // Server-side insertion into PAGAMENTOS to bypass RLS
+    if (supabaseUrl && supabaseKey) {
+        const supa = createClient(supabaseUrl, supabaseKey)
+        const { error: insertErr } = await supa.from("PAGAMENTOS").insert({
+            CLICOD: clicod || 0,
+            PCRNOT: pvenum || 0,
+            FCRPAR: index || 0,
+            FBRVLR: Number(amount),
+            COBCOD: 7, // PIX
+            STATUS: "pending",
+            PROVIDER_ID: chargeId || null,
+            METHOD: "pix"
+        })
+        if (insertErr) console.error("Erro ao inserir PAGAMENTOS via servidor:", insertErr)
+        else console.log("PAGAMENTOS inserido com sucesso via servidor:", chargeId)
+    }
 
     return NextResponse.json({
-      chargeId: data.id,
+      chargeId: chargeId,
       brCode: data.brCode,
       brCodeBase64: data.brCodeBase64,
       status: data.status,

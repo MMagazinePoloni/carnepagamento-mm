@@ -21,8 +21,11 @@ export default function PaymentModal({
 
   const body = useMemo(() => ({
     installmentId: installment.id,
-    amount
-  }), [installment.id, amount])
+    amount,
+    clicod: installment.clicod,
+    pvenum: installment.pcrnot,
+    index: installment.index
+  }), [installment.id, amount, installment.clicod, installment.pcrnot, installment.index])
 
   useEffect(() => {
     async function createCharge() {
@@ -52,15 +55,6 @@ export default function PaymentModal({
       const data = await res.json()
       // A AbacatePay retorna uma URL de checkout para o cliente
       if (data.paymentUrl) {
-        // Registra a intenção de pagamento no Supabase antes de redirecionar
-        await supabase.from("payments").insert({
-          installment_id: installment.id,
-          amount,
-          method: "pix",
-          status: "pending",
-          provider_id: data.chargeId || null
-        })
-        
         // Atualiza a venda indicando que foi enviado para cobrança
         if (installment.pcrnot) {
           await supabase
@@ -77,13 +71,6 @@ export default function PaymentModal({
 
       setQrText(data.pixCopiaCola || data.qrText || "")
       setCopyCode(data.pixCopiaCola || "")
-      await supabase.from("payments").insert({
-        installment_id: installment.id,
-        amount,
-        method: "pix",
-        status: "pending",
-        provider_id: data.chargeId || null
-      })
       if (installment.pcrnot) {
         await supabase
           .from("NVENDA")
@@ -113,10 +100,14 @@ export default function PaymentModal({
       if (pago) {
         if (timerRef.current) clearInterval(timerRef.current)
         await supabase
-          .from("payments")
-          .update({ status: "paid" })
-          .eq("installment_id", installment.id)
-          .eq("status", "pending")
+          .from("PAGAMENTOS")
+          .update({ 
+            STATUS: "paid",
+            FCRPGT: new Date().toISOString() 
+          })
+          .eq("PCRNOT", installment.pcrnot)
+          .eq("FCRPAR", installment.index)
+          .eq("STATUS", "pending")
         onStatusChange("pago")
       }
     }, 5000)

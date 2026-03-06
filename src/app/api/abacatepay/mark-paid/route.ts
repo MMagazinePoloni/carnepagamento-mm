@@ -24,14 +24,42 @@ export async function POST(req: Request) {
 
         const supa = createClient(url, key)
 
-        // Update payment status
-        const { error: updErr, count } = await supa
-            .from("payments")
-            .update({ status: "paid" })
-            .eq("provider_id", chargeId)
-            .eq("status", "pending")
+        // SECURITY: Verify payment with AbacatePay before updating the database
+        // This prevents someone from calling this endpoint with a fake chargeId.
+        const apiUrl = process.env.ABACATEPAY_API_URL
+        const apiKey = process.env.ABACATEPAY_API_KEY
+        if (apiUrl && apiKey) {
+            const checkUrl = `${apiUrl}/v1/pixQrCode/check?id=${encodeURIComponent(chargeId)}`
+            const checkRes = await fetch(checkUrl, {
+                method: "GET",
+                headers: {
+                    "Accept": "application/json",
+                    "Authorization": `Bearer ${apiKey}`
+                }
+            })
+            if (!checkRes.ok) {
+                return NextResponse.json({ error: "Falha ao verificar status do pagamento" }, { status: 403 })
+            }
+            const checkJson = await checkRes.json()
+            const paymentData = checkJson.data || checkJson
+            if (paymentData.status !== "PAID") {
+                return NextResponse.json({ error: "Pagamento não confirmado na operadora" }, { status: 403 })
+            }
+        }
 
-        console.log("mark-paid: provider_id=", chargeId, "count=", count, "err=", updErr)
+        // Update payment status in the new PAGAMENTOS table structure
+        // The user robot expects 'paid' to change it to 'processed'
+        const today = new Date().toISOString()
+        const { error: updErr, count } = await supa
+            .from("PAGAMENTOS")
+            .update({ 
+                STATUS: "paid",
+                FCRPGT: today 
+            })
+            .eq("PROVIDER_ID", chargeId)
+            .neq("STATUS", "processed") // Don't update if already processed by robot
+
+        console.log("mark-paid: PROVIDER_ID=", chargeId, "count=", count, "err=", updErr)
 
         if (updErr) {
             return NextResponse.json({ error: updErr.message }, { status: 500 })
@@ -74,21 +102,21 @@ export async function POST(req: Request) {
                     if (valRow) fbrvlr = Number((valRow as any).PVETPA)
                 }
 
-                const today = new Date().toISOString().split("T")[0]
+                const todayDateOnly = new Date().toISOString().split("T")[0]
                 const { error: fbcErr } = await supa
-                    .from("FBCRECEBER")
+                    .from("FCRECEBER")
                     .upsert({
                         CLICOD: finalClicod,
                         PCRNOT: pvenum,
                         FCRPAR: npeseq,
-                        FBRVLR: fbrvlr,
+                        FCRVLP: fbrvlr,
                         COBCOD: 7,
-                        FBRPGT: today,
+                        FCRPGT: todayDateOnly,
                         ACATUR: 1
                     }, { onConflict: "PCRNOT,FCRPAR" })
 
-                if (fbcErr) console.error("mark-paid FBCRECEBER error:", fbcErr)
-                else console.log("mark-paid FBCRECEBER upserted:", { PCRNOT: pvenum, FCRPAR: npeseq, CLICOD: finalClicod })
+                if (fbcErr) console.error("mark-paid FCRECEBER error:", fbcErr)
+                else console.log("mark-paid FCRECEBER upserted:", { PCRNOT: pvenum, FCRPAR: npeseq, CLICOD: finalClicod })
             }
         }
 
